@@ -1,4 +1,4 @@
-# Thrift & Bid — Thrift Shop Management System
+# Tesoro — Secondhand Marketplace & Auctions
 
 University project scaffold: a secondhand marketplace with a limited-edition
 product auction/bidding system as its core feature. Next.js (App Router) +
@@ -22,7 +22,7 @@ the backend, PostgreSQL + Prisma for persistence.
 
 See `package.json` for exact versions.
 
-## What's in this scaffold (Phase 3)
+## What's in this scaffold
 
 - Full App Router folder structure with every route from the plan present
   as a working page — most render a labeled placeholder until their
@@ -50,8 +50,8 @@ dark-walnut ink for structure, antique gold (brass) accents borrowed from
 price tags, muted olive for "good/success", muted plum for a live auction,
 and dusty burgundy (stamp) for something closed/rejected — like ink stamps
 on a thrift tag. Display face is Cinzel (Roman-capital serif, used for
-headings only), body is IBM Plex Sans, and prices/bids/countdowns use IBM
-Plex Mono for tabular figures. Tokens live in `tailwind.config.ts` and
+headings and button labels), body and prices are Cormorant Garamond (with
+SemiBold/Bold figures for prices). Tokens live in `tailwind.config.ts` and
 `app/globals.css`. The Tesoro logo (`public/tesoro-logo.png`) anchors the
 header's upper-left and the homepage "Our story" section.
 
