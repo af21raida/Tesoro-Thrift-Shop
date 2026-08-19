@@ -1,0 +1,21 @@
+-- ============================================================================
+-- Manual migration: AuctionStatus enum gains PENDING
+-- ============================================================================
+-- Buyer_Seller-created auctions must pass Admin approval before entering the
+-- normal UPCOMING -> ACTIVE -> ENDED lifecycle (see actions/auction/approve-
+-- auction.ts and lib/auction/approval.ts). A new PENDING status is added to
+-- the AuctionStatus enum; create-auction.ts writes PENDING for non-ADMIN
+-- creators and leaves the default UPCOMING for Admin-created auctions.
+--
+-- Standalone script, same convention as manual_role_model_v2.sql (no
+-- committed Prisma migration history exists yet). Run this BEFORE running
+-- `npx prisma migrate dev` / `npx prisma db push` against the updated
+-- schema.prisma.
+--
+-- Safe to run against a fresh/empty database: ADD VALUE IF NOT EXISTS is a
+-- no-op if the value already exists, and there is no data remapping — a
+-- PENDING auction only comes into existence through the updated
+-- create-auction.ts, never by converting existing rows.
+-- ============================================================================
+
+ALTER TYPE "AuctionStatus" ADD VALUE IF NOT EXISTS 'PENDING';

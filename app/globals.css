@@ -1,0 +1,82 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-display: "Cinzel", ui-serif, Georgia, serif;
+  --font-body: "Cormorant Garamond", ui-serif, Georgia, serif;
+  --font-mono: "Cormorant Garamond", ui-serif, Georgia, serif;
+}
+
+@layer base {
+  /* Larger base type — everything rem-based scales up for readability. */
+  html {
+    font-size: 17px;
+  }
+
+  body {
+    @apply bg-paper text-ink font-body antialiased;
+    /* Subtle aged-paper warmth: a soft highlight at the top, a faint warm
+       vignette below. Static, no animation. */
+    background-image:
+      radial-gradient(ellipse 80% 40% at 50% -10%, rgba(255, 255, 255, 0.55), transparent),
+      radial-gradient(ellipse 60% 45% at 50% 110%, rgba(169, 129, 60, 0.06), transparent);
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply font-display text-ink;
+  }
+
+  /* Visible keyboard focus everywhere — never suppressed. */
+  :focus-visible {
+    outline: 2px solid theme("colors.brass.DEFAULT");
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  /* The recurring "tag" motif: a die-cut price/auction tag with a punched
+     hole, used for status badges and category chips throughout the app. */
+  .tag-badge {
+    @apply relative inline-flex items-center gap-1.5 rounded-tag border border-current px-2.5 py-1 text-xs font-mono uppercase tracking-wide;
+  }
+
+  .tag-badge::before {
+    content: "";
+    @apply h-1.5 w-1.5 rounded-full bg-current opacity-60;
+  }
+
+  /* Simple decorative rule with a central mark — used on section
+     headings as the one subtle "medieval" ornament. Static decoration. */
+  .ornament {
+    @apply flex items-center gap-4;
+  }
+
+  .ornament::before,
+  .ornament::after {
+    content: "";
+    height: 1px;
+    flex: 1 1 0;
+    background-image: linear-gradient(to right, transparent, theme("colors.brass.DEFAULT"));
+    opacity: 0.45;
+  }
+
+  .ornament::after {
+    background-image: linear-gradient(to left, transparent, theme("colors.brass.DEFAULT"));
+  }
+}

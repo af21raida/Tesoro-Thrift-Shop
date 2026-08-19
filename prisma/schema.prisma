@@ -1,0 +1,369 @@
+// ============================================================================
+// Thrift Shop Management System — Prisma Schema
+// Phase 2 deliverable. PostgreSQL + Prisma.
+// ============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+// Phase 12 fix: BUYER and SELLER collapsed into a single BUYER_SELLER role
+// (the Buyer/Seller use-case diagram always drew them as one actor; the
+// separate roles/becomeSellerAction() self-upgrade flow was more machinery
+// than the diagram called for). ADMIN and STAFF are unchanged. See
+// prisma/migrations/manual_role_model_v2.sql for the expand/contract data
+// migration this rename requires for any database with existing rows.
+enum Role {
+  ADMIN
+  STAFF
+  BUYER_SELLER
+}
+
+enum ProductType {
+  THRIFT_STOCK   // normal staff/system-owned inventory
+  USER_LISTING   // seller-submitted marketplace product
+  AUCTION_ITEM   // limited-edition auction product
+}
+
+enum ProductCondition {
+  NEW
+  LIKE_NEW
+  GOOD
+  FAIR
+  POOR
+}
+
+enum ListingStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  ACTIVE
+  SOLD
+  REMOVED
+}
+
+enum AuctionStatus {
+  PENDING // Buyer_Seller-created, awaiting Admin approval (see actions/auction/approve-auction.ts)
+  UPCOMING
+  ACTIVE
+  ENDED
+  CANCELLED
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  FAILED
+}
+
+enum OrderSource {
+  CHECKOUT // normal cart checkout
+  AUCTION  // created by auction finalization
+}
+
+enum TransactionStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+enum NotificationType {
+  LISTING_APPROVED
+  LISTING_REJECTED
+  LOW_STOCK
+  AUCTION_WON
+  AUCTION_ENDED
+  ORDER_CONFIRMED
+  GENERIC
+}
+
+// ============================================================================
+// USER
+// ============================================================================
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  roles        Role[]   @default([BUYER_SELLER])
+  // Phase 9 addition — Admin "Remove Users" (Admin use-case diagram) is
+  // implemented as deactivation, not a hard delete: a real delete would
+  // cascade through every Order/Bid/Listing/Transaction this user is
+  // party to, destroying transaction history the brief elsewhere treats
+  // as something to preserve (bids are append-only, orders aren't
+  // deletable). See actions/users/set-user-active.ts.
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Seller side
+  listings        Listing[]      @relation("SellerListings")
+  reviewedListings Listing[]     @relation("ListingReviewer")
+
+  // Buyer / bidding side
+  bids            Bid[]
+  auctionsWon     Auction[]      @relation("AuctionWinner")
+  auctionsCreated Auction[]      @relation("AuctionCreator")
+
+  cart            Cart?
+  orders          Order[]
+  notifications   Notification[]
+
+  @@index([email])
+}
+
+// ============================================================================
+// CATALOG
+// ============================================================================
+
+model Category {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  slug        String    @unique
+  description String?
+  createdAt   DateTime  @default(now())
+
+  products    Product[]
+}
+
+model Product {
+  id          String            @id @default(cuid())
+  name        String
+  description String
+  price       Decimal           @db.Decimal(10, 2)
+  condition   ProductCondition?
+  images      String[]
+  type        ProductType
+  categoryId  String
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  // Phase 11 fix (audit issue #6): explicit onDelete: Restrict, rather than
+  // relying on Prisma's implicit default for a required relation (which is
+  // already Restrict on PostgreSQL, but leaving it implicit meant the
+  // guarantee wasn't visible in the schema itself). This closes the
+  // count-then-delete race in deleteCategoryAction at the database level:
+  // even if a Product is inserted into a Category between that action's
+  // productCount check and its category.delete call, the delete itself now
+  // fails with a foreign-key violation (Prisma error P2003) instead of
+  // silently orphaning Product.categoryId. See deleteCategoryAction's catch
+  // block in actions/products/category-actions.ts for the second layer.
+  category    Category          @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  inventory   Inventory?
+  listing     Listing?
+  auction     Auction?
+
+  cartItems   CartItem[]
+  orderItems  OrderItem[]
+
+  @@index([categoryId])
+  @@index([type])
+}
+
+model Inventory {
+  id                String   @id @default(cuid())
+  productId         String   @unique
+  stock             Int      @default(0)
+  lowStockThreshold Int      @default(5)
+  available         Boolean  @default(true)
+  updatedAt         DateTime @updatedAt
+
+  product           Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  // NOTE: Prisma has no @@check attribute. The "stock >= 0" invariant is
+  // enforced by a raw-SQL CHECK CONSTRAINT added in a migration (see the
+  // migration note below the schema), plus defense-in-depth validation
+  // inside the checkout transaction itself.
+}
+
+// ============================================================================
+// SELLER LISTINGS (moderated marketplace flow)
+// ============================================================================
+
+model Listing {
+  id               String        @id @default(cuid())
+  productId        String        @unique
+  sellerId         String
+  status           ListingStatus @default(PENDING)
+  reviewedById     String?
+  reviewedAt       DateTime?
+  rejectionReason  String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  product          Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  seller           User          @relation("SellerListings", fields: [sellerId], references: [id])
+  reviewedBy       User?         @relation("ListingReviewer", fields: [reviewedById], references: [id])
+
+  orderItems       OrderItem[]
+
+  @@index([sellerId])
+  @@index([status])
+}
+
+// ============================================================================
+// AUCTION & BIDDING (core feature)
+// ============================================================================
+
+model Auction {
+  id            String        @id @default(cuid())
+  productId     String        @unique
+  createdById   String
+  startTime     DateTime
+  endTime       DateTime
+  startingPrice Decimal       @db.Decimal(10, 2)
+  minIncrement  Decimal       @default(1.00) @db.Decimal(10, 2)
+  // Phase 8 addition. Denormalized on purpose — mirrors Inventory.stock
+  // (Phase 5/7): having the "thing that must be checked and updated
+  // atomically" as a real column on the row being locked is what lets bid
+  // placement use a single guarded UPDATE...WHERE statement (see
+  // lib/auction/bidding.ts) instead of a separate read-then-write that
+  // could race. Null means no bid has been placed yet (floor = startingPrice).
+  currentHighestBid Decimal?  @db.Decimal(10, 2)
+  // Default UPCOMING keeps Admin-created auctions exactly as before;
+  // create-auction.ts explicitly sets PENDING for Buyer_Seller-created
+  // ones, which only leave PENDING via Admin approval (lib/auction/approval.ts).
+  status        AuctionStatus @default(UPCOMING)
+  winnerId      String?
+  createdAt     DateTime      @default(now())
+  closedAt      DateTime?
+
+  product       Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdBy     User          @relation("AuctionCreator", fields: [createdById], references: [id])
+  winner        User?         @relation("AuctionWinner", fields: [winnerId], references: [id])
+
+  bids          Bid[]
+  order         Order?
+
+  @@index([status])
+  @@index([startTime])
+  @@index([endTime])
+  // NOTE: Prisma has no @@check attribute. "endTime > startTime" is enforced
+  // by a raw-SQL CHECK CONSTRAINT added in a migration (see migration note
+  // below), plus Zod validation on auction creation input.
+}
+
+model Bid {
+  id        String   @id @default(cuid())
+  auctionId String
+  userId    String
+  amount    Decimal  @db.Decimal(10, 2)
+  createdAt DateTime @default(now())
+
+  auction   Auction  @relation(fields: [auctionId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
+
+  // Supports "get current highest bid" and full history queries efficiently.
+  @@index([auctionId, amount(sort: Desc)])
+  @@index([auctionId, createdAt])
+}
+
+// ============================================================================
+// CART / CHECKOUT
+// ============================================================================
+
+model Cart {
+  id     String     @id @default(cuid())
+  userId String     @unique
+  user   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items  CartItem[]
+}
+
+model CartItem {
+  id        String   @id @default(cuid())
+  cartId    String
+  productId String
+  quantity  Int      @default(1)
+  addedAt   DateTime @default(now())
+
+  cart      Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([cartId, productId])
+}
+
+// ============================================================================
+// ORDERS / TRANSACTIONS
+// ============================================================================
+
+model Order {
+  id          String      @id @default(cuid())
+  userId      String
+  status      OrderStatus @default(PENDING)
+  source      OrderSource
+  // Nullable + unique: enforces "one auction can never generate more than
+  // one order" (business rule 9) at the database level, and makes the
+  // finalization job idempotent by construction.
+  auctionId   String?     @unique
+  totalAmount Decimal     @db.Decimal(10, 2)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  user        User        @relation(fields: [userId], references: [id])
+  auction     Auction?    @relation(fields: [auctionId], references: [id])
+
+  items       OrderItem[]
+  transaction Transaction?
+
+  @@index([userId])
+  @@index([status])
+}
+
+model OrderItem {
+  id        String   @id @default(cuid())
+  orderId   String
+  productId String
+  listingId String?
+  quantity  Int      @default(1)
+  unitPrice Decimal  @db.Decimal(10, 2)
+
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id])
+  listing   Listing? @relation(fields: [listingId], references: [id])
+
+  @@index([orderId])
+}
+
+model Transaction {
+  id        String            @id @default(cuid())
+  orderId   String            @unique
+  provider  String            @default("MOCK")
+  status    TransactionStatus @default(PENDING)
+  reference String?
+  amount    Decimal           @db.Decimal(10, 2)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  order     Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+}
+
+// ============================================================================
+// NOTIFICATIONS
+// ============================================================================
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  message   String
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+}
