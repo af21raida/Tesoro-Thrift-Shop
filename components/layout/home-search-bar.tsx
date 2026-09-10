@@ -4,14 +4,14 @@ import { prisma } from "@/lib/db/prisma";
  * Homepage search/category bar shown directly beneath the burgundy header.
  * A plain GET <form> to /products — the same filter mechanism the /products
  * page's ProductFilters uses — so results are shareable/bookmarkable and need
- * no client JS. Styled to read as the bottom of the header (burgundy band)
+ * no client JS. Styled to read as the bottom of the header (#343952 band)
  * while the inputs stay cream for contrast and readability.
  */
 export async function HomeSearchBar(): Promise<React.JSX.Element> {
   const categories = await prisma.category.findMany({ orderBy: { name: "asc" } });
 
   return (
-    <div className="bg-burgundy">
+    <div className="bg-[#343952]">
       <form
         action="/products"
         method="get"
@@ -45,7 +45,7 @@ export async function HomeSearchBar(): Promise<React.JSX.Element> {
         </select>
         <button
           type="submit"
-          className="rounded-tag bg-teal px-5 py-2 font-display font-semibold text-xs uppercase tracking-wide text-paper hover:bg-teal-light"
+          className="rounded-tag bg-burgundy px-5 py-2 font-display font-semibold text-xs uppercase tracking-wide text-paper hover:bg-burgundy-dark"
         >
           Search
         </button>

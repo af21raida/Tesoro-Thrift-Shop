@@ -12,10 +12,11 @@ export async function Header(): Promise<React.JSX.Element> {
   const isBuyerSeller = session?.roles.includes("BUYER_SELLER") ?? false;
 
   return (
-    <header className="relative border-b border-brass-dark/50 bg-burgundy">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+    <header className="relative overflow-hidden border-b border-brass-dark/50 bg-burgundy">
+      <div aria-hidden="true" className="header-wood-overlay" />
+      <div className="relative mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
         <Link href="/" className="flex items-center gap-4">
-          <span className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-tag border border-brass/60 shadow-sm md:h-16 md:w-16">
+          <span className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-tag border border-brass/60 shadow-sm md:h-28 md:w-28">
             {/* eslint-disable-next-line @next/next/no-img-element -- local logo asset */}
             <img
               src="/tesoro-logo.png"

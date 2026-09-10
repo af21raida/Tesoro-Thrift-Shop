@@ -52,8 +52,22 @@ and dusty burgundy (stamp) for something closed/rejected — like ink stamps
 on a thrift tag. Display face is Cinzel (Roman-capital serif, used for
 headings and button labels), body and prices are Cormorant Garamond (with
 SemiBold/Bold figures for prices). Tokens live in `tailwind.config.ts` and
-`app/globals.css`. The Tesoro logo (`public/tesoro-logo.png`) anchors the
-header's upper-left and the homepage "Our story" section.
+`app/globals.css`. The header has two panels: the 1st is burgundy
+(`#2F0909`) with a pure-CSS checkered wooden overlay (see
+`.header-wood-overlay` in `app/globals.css`) and an enlarged Tesoro logo
+(`public/tesoro-logo.png`, `h-24 w-24 md:h-28 md:w-28`) upper-left; the
+2nd (homepage search + categories bar) is `#343952` with a burgundy
+Search button matching the 1st panel. The logo also anchors the homepage
+"Our story" section. The homepage hero
+shows four product photos (`public/hero-card-tee.png`,
+`public/hero-card-book.png`, `public/hero-card-poster.png`,
+`public/hero-card-cd.png`) as an overlapping card spread beside the hero
+text (CD back-left, poster centre, book right, tee front) — the
+pictures have transparent backgrounds so they render as borderless cutouts
+with a soft drop-shadow, and each shifts slightly sideways on its own hover
+(see `.hero-spread` / `.hero-card` in `app/globals.css`). Each card is a
+link to its product-detail page (`/products/[id]`, resolved by product
+name at render time).
 
 ## Getting started
 

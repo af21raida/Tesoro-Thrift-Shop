@@ -79,4 +79,121 @@
   .ornament::after {
     background-image: linear-gradient(to left, transparent, theme("colors.brass.DEFAULT"));
   }
+
+  /* First header panel: checkered wooden texture overlay. Keeps the
+     burgundy base color, adds a parquet-style checkerboard + wood grain
+     on top via a pointer-events-none absolute layer
+     (see components/layout/header.tsx). Pure CSS/SVG — no image asset
+     needed. Each check is 72px (144px conic tile = 2x2 checks). */
+  .header-wood-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.52;
+    mix-blend-mode: overlay;
+    background-image:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='280' height='280' viewBox='0 0 280 280'%3E%3Cfilter id='wood'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.02 0.14' numOctaves='4' seed='8'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='280' height='280' filter='url(%23wood)' opacity='0.6'/%3E%3C/svg%3E"),
+      repeating-conic-gradient(
+        rgba(255, 226, 170, 0.24) 0% 25%,
+        rgba(0, 0, 0, 0.3) 0% 50%
+      ),
+      repeating-linear-gradient(
+        to right,
+        rgba(0, 0, 0, 0.5) 0px,
+        rgba(0, 0, 0, 0.5) 2px,
+        transparent 2px,
+        transparent 72px
+      ),
+      repeating-linear-gradient(
+        to bottom,
+        rgba(0, 0, 0, 0.5) 0px,
+        rgba(0, 0, 0, 0.5) 2px,
+        transparent 2px,
+        transparent 72px
+      ),
+      linear-gradient(to bottom, rgba(0, 0, 0, 0.22), transparent 35%, transparent 65%, rgba(0, 0, 0, 0.22));
+    background-size: 280px 280px, 144px 144px, auto, auto, auto;
+  }
+
+  /* Homepage hero-side collage: the four product cutouts overlap in the
+     same area the single hero collage used to occupy. The assets have
+     transparent backgrounds, so the cutouts render with NO white box,
+     NO border, and NO blend mode — just a soft drop-shadow that follows
+     each cutout's own alpha shape. Back-to-front: CD (back-left),
+     poster (centre), book (right), tee (front-bottom), like the
+     reference arrangement. */
+  .hero-spread {
+    position: relative;
+    width: 100%;
+    max-width: 560px;
+    aspect-ratio: 1 / 1;
+  }
+
+  .hero-card {
+    position: absolute;
+    height: auto;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    cursor: pointer;
+    filter: drop-shadow(0 10px 16px rgba(58, 46, 32, 0.25));
+    transition: transform 0.25s ease, filter 0.25s ease;
+  }
+
+  /* The positioning/rotation/hover classes live on the link; the image
+     inside simply fills it so the clickable area is the whole cutout. */
+  .hero-card img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  .hero-card-1 {
+    left: 0%;
+    top: 5%;
+    width: 38%;
+    z-index: 1;
+    --tilt: -7deg;
+    transform: rotate(var(--tilt)) translateX(0);
+  }
+
+  .hero-card-2 {
+    left: 29%;
+    top: 0%;
+    width: 43%;
+    z-index: 2;
+    --tilt: 2deg;
+    transform: rotate(var(--tilt)) translateX(0);
+  }
+
+  .hero-card-3 {
+    left: 62%;
+    top: 12%;
+    width: 36%;
+    z-index: 3;
+    --tilt: 4deg;
+    transform: rotate(var(--tilt)) translateX(0);
+  }
+
+  .hero-card-4 {
+    left: 5%;
+    top: 47%;
+    width: 43%;
+    z-index: 4;
+    --tilt: -4deg;
+    transform: rotate(var(--tilt)) translateX(0);
+  }
+
+  /* Independent sideways hover: only the hovered cutout shifts
+     horizontally; siblings keep their own transform and never move.
+     The rotation variable is preserved so the cutout doesn't snap
+     straight on hover — it just nudges sideways and eases back. */
+  .hero-card-1:hover,
+  .hero-card-2:hover,
+  .hero-card-3:hover,
+  .hero-card-4:hover {
+    transform: rotate(var(--tilt)) translateX(10px);
+    filter: drop-shadow(0 14px 20px rgba(58, 46, 32, 0.32));
+    z-index: 5;
+  }
 }

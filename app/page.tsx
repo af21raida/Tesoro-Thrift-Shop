@@ -180,10 +180,34 @@ async function Categories(): Promise<React.JSX.Element | null> {
   );
 }
 
+/**
+ * Hero card → product mapping. Each of the four hero cutouts links to its
+ * real product-detail page (`/products/[id]`), resolved by exact product
+ * name at render time so a reseed (new IDs, same names) can't break the
+ * links. Falls back to the /products browse page if an item is ever
+ * missing — never a dead link, never a duplicate product, no hardcoded
+ * product info beyond the names used for the lookup.
+ */
+const HERO_PRODUCT_NAMES = {
+  cd: '"the Queen Is Dead"- cd By The Smiths',
+  poster: "The Holdovers Poster",
+  book: "Homesick For Another World By Ottessa Moshfegh",
+  tee: "Cat White Tee",
+} as const;
+
 export default async function HomePage(): Promise<React.JSX.Element> {
   // Session is only needed to point the "Sell an item" CTA at /seller vs.
   // /register — every section on this page is otherwise public.
   const session = await getSession();
+
+  const heroProducts = await prisma.product.findMany({
+    where: { name: { in: Object.values(HERO_PRODUCT_NAMES) } },
+    select: { id: true, name: true },
+  });
+  const heroHref = (name: string): string => {
+    const found = heroProducts.find((product) => product.name === name);
+    return found ? `/products/${found.id}` : "/products";
+  };
 
   return (
     <div>
@@ -212,19 +236,47 @@ export default async function HomePage(): Promise<React.JSX.Element> {
             </div>
           </div>
 
-          {/* The uploaded four-product collage — a single image on a white
-              background. mix-blend-multiply makes the white background
-              vanish into the cream hero (white × cream = cream) while the
-              products themselves stay opaque and true to color. Static,
-              decorative, non-interactive. */}
-          <div className="flex items-center justify-center self-center" aria-hidden>
-            <img
-              src="/hero-collage.png"
-              alt=""
-              width={1403}
-              height={1121}
-              className="h-auto w-full mix-blend-multiply"
-            />
+          {/* Hero-side collage — the four product cutouts (transparent
+              backgrounds, no card boxes) arranged like the reference:
+              CD back-left, poster centre, book right, tee front-bottom.
+              Each cutout is a link to its real product-detail page; each
+              still shifts sideways on its own hover via .hero-card:hover
+              (see app/globals.css) while the other cutouts never move. */}
+          <div className="flex items-center justify-center self-center">
+            <div className="hero-spread">
+              <Link
+                href={heroHref(HERO_PRODUCT_NAMES.cd)}
+                className="hero-card hero-card-1"
+                aria-label={HERO_PRODUCT_NAMES.cd}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element -- local hero assets */}
+                <img src="/hero-card-cd.png" alt="" width={600} height={600} />
+              </Link>
+              <Link
+                href={heroHref(HERO_PRODUCT_NAMES.poster)}
+                className="hero-card hero-card-2"
+                aria-label={HERO_PRODUCT_NAMES.poster}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element -- local hero assets */}
+                <img src="/hero-card-poster.png" alt="" width={600} height={800} />
+              </Link>
+              <Link
+                href={heroHref(HERO_PRODUCT_NAMES.book)}
+                className="hero-card hero-card-3"
+                aria-label={HERO_PRODUCT_NAMES.book}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element -- local hero assets */}
+                <img src="/hero-card-book.png" alt="" width={600} height={800} />
+              </Link>
+              <Link
+                href={heroHref(HERO_PRODUCT_NAMES.tee)}
+                className="hero-card hero-card-4"
+                aria-label={HERO_PRODUCT_NAMES.tee}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element -- local hero assets */}
+                <img src="/hero-card-tee.png" alt="" width={600} height={700} />
+              </Link>
+            </div>
           </div>
         </section>
       </div>
